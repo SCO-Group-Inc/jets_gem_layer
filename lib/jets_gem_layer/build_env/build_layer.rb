@@ -31,6 +31,7 @@ def main
   system('bundle', 'config', 'set', 'force_ruby_platform', 'true')
   system('bundle', 'config', 'set', '--local', 'deployment', 'true')
   system('bundle', 'config', 'set', '--local', 'path', '/tmp/build/bundle')
+  system('bundle', 'config', 'set', '--local', 'without', 'development:test')
   unless system('bundle', 'install')
     warn('Error while building gems, aborting...')
     exit 3
