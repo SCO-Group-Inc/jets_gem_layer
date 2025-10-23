@@ -19,8 +19,12 @@ def main
 
   if ENV['GEM_LAYER_PACKAGE_DEPENDENCIES']
     warn("Installing package dependencies: #{ENV.fetch('GEM_LAYER_PACKAGE_DEPENDENCIES')}...")
+
+    warn('Removing openssl-snapsafe-libs to avoid conflicts with openssl-devel...')
+    system('yum', 'remove', '-y', 'openssl-snapsafe-libs')
+
     gem_deps = ENV.fetch('GEM_LAYER_PACKAGE_DEPENDENCIES').split(',')
-    unless system('yum', 'install', '-y', '--allowerasing', *gem_deps)
+    unless system('yum', 'install', '-y', *gem_deps)
       warn('Could not install build dependency packages, aborting...')
       exit 2
     end
