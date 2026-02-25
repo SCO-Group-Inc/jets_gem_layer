@@ -21,7 +21,7 @@ def main
     warn("Installing package dependencies: #{ENV.fetch('GEM_LAYER_PACKAGE_DEPENDENCIES')}...")
 
     warn('Lock openssl-devel version')
-    system('yum', 'install', '-y', 'openssl-devel-1.0.2k-24.amzn2.0.15')
+    system('yum', 'install', '-y', 'openssl-devel-1.0.2k-24.amzn2.0.17')
 
     gem_deps = ENV.fetch('GEM_LAYER_PACKAGE_DEPENDENCIES').split(',')
     unless system('yum', 'install', '-y', *gem_deps)
