@@ -39,6 +39,19 @@ def main
   required_libs = Set.new
   pkg_cache = Hash.new do |h, k|
     pkgs_str, = Open3.capture2('dnf', 'repoquery', '--installed', '-f', k)
+    # On AL2023, /lib64 is a symlink to /usr/lib64. ldd may report paths via
+    # the symlink while RPM records the canonical path (or vice versa).
+    # Fall back to the realpath-resolved path if the original didn't match.
+    if pkgs_str.strip.empty?
+      begin
+        real_k = File.realpath(k)
+        if real_k != k
+          pkgs_str, = Open3.capture2('dnf', 'repoquery', '--installed', '-f', real_k)
+        end
+      rescue Errno::ENOENT
+        # file doesn't exist, keep empty result
+      end
+    end
     h[k] = pkgs_str
   end
 
