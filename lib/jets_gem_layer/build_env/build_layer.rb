@@ -9,24 +9,16 @@ require 'fileutils'
 # This script runs in the public.ecr.aws/sam/build-ruby docker container
 # to build native gems and libs which end up in the layer zip file
 def main
-  warn('Installing yum package manager...')
-  unless system('yum', 'install', '-y', 'yum-utils')
-    warn("Could not install yum-utils, exit code #{$CHILD_STATUS}, aborting...")
-    exit 1
-  end
-
   Dir.chdir('/tmp/inputs')
 
   if ENV['GEM_LAYER_PACKAGE_DEPENDENCIES']
     warn("Installing package dependencies: #{ENV.fetch('GEM_LAYER_PACKAGE_DEPENDENCIES')}...")
 
-    warn('Swapping openssl-snapsafe-libs with openssl-libs...')
-    system('yum', 'swap', '-y', 'openssl-snapsafe-libs', 'openssl-libs')
     warn('Installing openssl-devel...')
-    system('yum', 'install', '-y', 'openssl-devel')
+    system('dnf', 'install', '-y', 'openssl-devel')
 
     gem_deps = ENV.fetch('GEM_LAYER_PACKAGE_DEPENDENCIES').split(',')
-    unless system('yum', 'install', '-y', *gem_deps)
+    unless system('dnf', 'install', '-y', *gem_deps)
       warn('Could not install build dependency packages, aborting...')
       exit 2
     end
@@ -45,8 +37,21 @@ def main
 
   warn('Copying libs...')
   required_libs = Set.new
-  yum_cache = Hash.new do |h, k|
-    pkgs_str, = Open3.capture2('repoquery', '-f', k)
+  pkg_cache = Hash.new do |h, k|
+    pkgs_str, = Open3.capture2('dnf', 'repoquery', '--installed', '-f', k)
+    # On AL2023, /lib64 is a symlink to /usr/lib64. ldd may report paths via
+    # the symlink while RPM records the canonical path (or vice versa).
+    # Fall back to the realpath-resolved path if the original didn't match.
+    if pkgs_str.strip.empty?
+      begin
+        real_k = File.realpath(k)
+        if real_k != k
+          pkgs_str, = Open3.capture2('dnf', 'repoquery', '--installed', '-f', real_k)
+        end
+      rescue Errno::ENOENT
+        # file doesn't exist, keep empty result
+      end
+    end
     h[k] = pkgs_str
   end
 
@@ -60,7 +65,7 @@ def main
     next unless deps.length.positive?
 
     deps.each do |dep|
-      pkgs = yum_cache[dep].split("\n")
+      pkgs = pkg_cache[dep].split("\n")
       required_libs << dep if pkgs.length.positive?
     end
   end
